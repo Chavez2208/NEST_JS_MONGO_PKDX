@@ -19,12 +19,7 @@ export class PokemonService {
       const pokemon = await this.pokemonModel.create(createPokemonDto);
       return pokemon;
     } catch (error) {
-      if (error.code === 11000) {
-        throw new BadRequestException(`Pokemon Exists in db ${JSON.stringify(error.keyValue)}}`)
-      } else {
-        console.log(error);
-        throw new InternalServerErrorException('Can´t create Pokmeon - Check Server Logs');
-      }
+      this.handleExceptions(error);
     }
 
   }
@@ -58,11 +53,32 @@ export class PokemonService {
     return pokemon;
   }
 
-  update(id: string, updatePokemonDto: UpdatePokemonDto) {
-    return `This action updates a #${id} pokemon`;
+  async update(term: string, updatePokemonDto: UpdatePokemonDto) {
+    const pokemon = await this.findOne(term); //Busamos que termino nos trae y regesa un modelo no un objeto
+    try {
+      if (updatePokemonDto.name) updatePokemonDto.name = updatePokemonDto.name.toLowerCase();
+      await pokemon.updateOne(updatePokemonDto, { new: true });
+      return { ...pokemon.toJSON(), ...updatePokemonDto };
+    } catch (error) {
+      this.handleExceptions(error);
+    }
+
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} pokemon`;
+  async remove(id: string,) {
+    // const pokemon = await this.findOne(id)
+    // await pokemon.deleteOne();
+    // const result = await this.pokemonModel.findByIdAndDelete(id);
+    const { deletedCount } = await this.pokemonModel.deleteOne({ _id: id });
+    if (deletedCount === 0) throw new BadRequestException('Pokemon with id `${id}` not found');
+  }
+
+  //Metodo que regresa un error del metodo donde se utilice, Excepciones no controladas
+  private handleExceptions(error: any) {
+    if (error.code === 11000) {
+      throw new BadRequestException(`Pokemon Exists in db ${JSON.stringify(error.keyValue)}}`)
+    } else {
+      throw new InternalServerErrorException('Can´t create Pokmeon - Check Server Logs');
+    }
   }
 }
